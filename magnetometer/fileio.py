@@ -48,6 +48,9 @@ def save_readings(basepath, stream_start_timestamp, readings):
         # write data to file, forcing floating point format
         f.write(" ".join([str(column) for column in reading]) + "\n")
 
+	# update last time
+	last_time = this_time
+
     # close file pointer
     f.close()
 
