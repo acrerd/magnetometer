@@ -75,6 +75,6 @@ def get_storage_path(basepath, time_obj):
 
     # full path
     path = os.path.join(basepath, time_obj.strftime("%Y"), \
-    time_obj.strftime("%m"), time_obj.strftime("%d"), filename)
+    time_obj.strftime("%m"), filename)
 
     return path
