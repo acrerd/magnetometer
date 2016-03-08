@@ -28,7 +28,7 @@ def save_readings(basepath, stream_start_timestamp, readings):
         (int(reading[0]) + stream_start_timestamp) / 1000)
 
         # have we passed midnight?
-        if this_time.date() - last_time.date() > 0:
+        if this_time.date() > last_time.date():
             # new day - open a new file
 
             # close current file
