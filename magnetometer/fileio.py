@@ -37,8 +37,11 @@ def save_readings(basepath, stream_start_timestamp, readings):
             # open new one
             f = open_with_create(get_storage_path(basepath, this_time), "a")
 
+        # this time tuple
+        this_time_tuple = this_time.timetuple()
+
         # date delta since midnight
-        delta = (this_time - this_time.date())
+        delta = (this_time - datetime.datetime(*this_time_tuple[0:3]))
 
         # replace time with ms since midnight
         reading[0] = int(delta.seconds * 1000 + delta.microseconds / 1000)
