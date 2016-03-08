@@ -14,9 +14,9 @@ def save_readings(basepath, stream_start_timestamp, readings):
     readings aren't, then they will be saved in incorrect locations and order.
     """
 
-    # last time (by default, the first time)
-    last_time = datetime.datetime.utcfromtimestamp( \
-    (int(readings[0][0]) + stream_start_timestamp) / 1000)
+    # last time tuple (by default, the first time)
+    last_time_tuple = datetime.datetime.utcfromtimestamp( \
+    (int(readings[0][0]) + stream_start_timestamp) / 1000).timetuple()
 
     # open up file for first reading
     f = open_with_create(get_storage_path(basepath, last_time), "a")
@@ -27,7 +27,8 @@ def save_readings(basepath, stream_start_timestamp, readings):
         this_time = datetime.datetime.utcfromtimestamp( \
         (int(reading[0]) + stream_start_timestamp) / 1000)
 
-        if (this_time - last_time).days > 0:
+        # have we passed midnight?
+        if this_time.date() - last_time.date() > 0:
             # new day - open a new file
 
             # close current file
@@ -36,11 +37,8 @@ def save_readings(basepath, stream_start_timestamp, readings):
             # open new one
             f = open_with_create(get_storage_path(basepath, this_time), "a")
 
-        # this time tuple
-        this_time_tuple = this_time.timetuple()
-
         # date delta since midnight
-        delta = (this_time - datetime.datetime(*this_time_tuple[0:3]))
+        delta = (this_time - this_time.date())
 
         # replace time with ms since midnight
         reading[0] = int(delta.seconds * 1000 + delta.microseconds / 1000)
