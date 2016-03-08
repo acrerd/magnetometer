@@ -14,9 +14,9 @@ def save_readings(basepath, stream_start_timestamp, readings):
     readings aren't, then they will be saved in incorrect locations and order.
     """
 
-    # last time tuple (by default, the first time)
-    last_time_tuple = datetime.datetime.utcfromtimestamp( \
-    (int(readings[0][0]) + stream_start_timestamp) / 1000).timetuple()
+    # last time (by default, the first time)
+    last_time = datetime.datetime.utcfromtimestamp( \
+    (int(readings[0][0]) + stream_start_timestamp) / 1000)
 
     # open up file for first reading
     f = open_with_create(get_storage_path(basepath, last_time), "a")
