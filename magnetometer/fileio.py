@@ -6,26 +6,29 @@ import datetime
 
 """File I/O functions"""
 
-def save_readings(basepath, stream_start_timestamp, readings):
+def save_readings(basepath, datastore):
     """Saves the readings to the specified path, in a directory representing \
     its date
 
     This method only works if the readings are in chronological order. If the
     readings aren't, then they will be saved in incorrect locations and order.
+
+    :param basepath: base path to save reading directory structure in
+    :param datastore: datastore to save
     """
 
     # last time (by default, the first time)
     last_time = datetime.datetime.utcfromtimestamp( \
-    (int(readings[0][0]) + stream_start_timestamp) / 1000)
+    int(datastore.readings[0].reading_time) / 1000)
 
     # open up file for first reading
     f = open_with_create(get_storage_path(basepath, last_time), "a")
 
     # loop over readings
-    for reading in readings:
+    for reading in datastore.readings:
         # create date object from reading time
         this_time = datetime.datetime.utcfromtimestamp( \
-        (int(reading[0]) + stream_start_timestamp) / 1000)
+        int(reading.reading_time) / 1000)
 
         # have we passed midnight?
         if this_time.date() > last_time.date():
@@ -44,10 +47,10 @@ def save_readings(basepath, stream_start_timestamp, readings):
         delta = (this_time - datetime.datetime(*this_time_tuple[0:3]))
 
         # replace time with ms since midnight
-        reading[0] = int(delta.seconds * 1000 + delta.microseconds / 1000)
+        reading.reading_time = int(delta.seconds * 1000 + delta.microseconds / 1000)
 
         # write data to file, forcing floating point format
-        f.write(" ".join([str(column) for column in reading]) + "\n")
+        f.write(reading.whitespace_repr() + "\n")
 
 	# update last time
 	last_time = this_time

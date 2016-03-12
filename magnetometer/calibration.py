@@ -2,14 +2,21 @@ from __future__ import print_function, division
 
 """Calibration scripts for University of Glasgow Observatory magnetometer"""
 
-def scale_magnetometer_data(readings):
+"""Conversion factors for each channel (this must be set externally)"""
+conversion = []
+
+def scale_counts_to_volts(sample_values):
+    return [int(sample) * factor for sample, factor \
+    in zip(sample_values, conversion)]
+
+def scale_volts_to_nt_and_degrees(sample_values):
     """Scales voltages from magnetometer to nanotesla and degrees
 
     Based on Matlab code by Hugh Potts.
     """
 
-    if len(readings) is not 4:
-        raise Exception("Readings must be an iterable with 4 items")
+    if len(sample_values) is not 4:
+        raise Exception("There must be 4 samples specified")
 
     # wire resistance between magnetometer and A/D
     r_wires = 2.48
@@ -37,25 +44,25 @@ def scale_magnetometer_data(readings):
 
     # first we need to multiply up the z channel (3th item in list) to its true
     # value
-    readings[2] = readings[2] / pot_div_fraction
+    sample_values[2] = sample_values[2] / pot_div_fraction
 
     # sum up measured voltages
-    v_measured_sum = sum(readings)
+    v_measured_sum = sum(sample_values)
 
     # channel voltage correction factor
     v_measured_correction = v_measured_sum * r_wires / r_in
 
-    # readings correction
-    v_reading_correction = [reading * (1 + r_wires / r_in) \
-    for reading in readings]
+    # sample correction
+    v_sample_correction = [value * (1 + r_wires / r_in) \
+    for value in sample_values]
 
     # corrected voltages
-    v_corrected = [v_reading + v_measured_correction \
-    for v_reading in v_reading_correction]
+    v_corrected = [v_sample + v_measured_correction \
+    for v_sample in v_sample_correction]
 
     # now convert to physical units
     v_corrected[0:3] = [v * b_scale for v in v_corrected[0:3]]
     v_corrected[3] = v_corrected[3] * t_scale
 
-    # return calibrated data
+    # return calibrated values
     return v_corrected
