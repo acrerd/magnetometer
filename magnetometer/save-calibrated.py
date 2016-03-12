@@ -66,8 +66,7 @@ while True:
     time.sleep(sleep_time)
 
     # get data
-    data = server.get_command_response("dataafter {0} {1}".format(timestamp, \
-    server.buffer_length))
+    data = server.get_command_response("dataafter {0}".format(timestamp))
 
     # only do something if the data is useful
     if data is not None:
@@ -77,8 +76,7 @@ while True:
             conversion_callbacks=[calibration.scale_counts_to_volts, \
             calibration.scale_volts_to_nt_and_degrees])
         except Exception:
-            print("Data appears to be invalid (possibly buffer too small): \
-{0}".format(data))
+            print("Data appears to be invalid: {0}".format(data))
 
             continue
 
