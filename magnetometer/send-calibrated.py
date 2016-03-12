@@ -90,8 +90,8 @@ while True:
         # send data to server
         try:
             destinations.send_to_server(datastore, config)
-        except, e:
-            print("Error processing dataafter {0}: {1}", timestamp, e)
+        except Exception as e:
+            print("Error processing dataafter {0}: {1}".format(timestamp, e))
     else:
         print("Skipped empty data from server [timestamp = {0}]".format( \
         timestamp))

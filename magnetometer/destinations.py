@@ -101,8 +101,8 @@ def send_to_server(datastore, config):
 
     # create connection
     connection = httplib.HTTPConnection(config.get('destination', 'host'), \
-    config.get('destination', 'port'), \
-    timeout=config.get('destination', 'timeout'))
+    int(config.get('destination', 'port')), \
+    timeout=int(config.get('destination', 'timeout')))
 
     # create headers
     headers = {"Content-type": "application/x-www-form-urlencoded", \
