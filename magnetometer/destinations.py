@@ -3,6 +3,8 @@ from __future__ import print_function, division
 import sys
 import os
 import datetime
+import urllib
+import httplib
 
 """File I/O functions"""
 
@@ -82,3 +84,36 @@ def get_storage_path(basepath, time_obj):
     time_obj.strftime("%m"), filename)
 
     return path
+
+def send_to_server(datastore, config):
+    """Sends the data in the specified datastore to the server in the config
+
+    :param datastore: datastore to send
+    :param config: config settings for destination
+    """
+
+    # create path with GET key
+    path = config.get('destination', 'path') + "?" \
+    + config.get('destination', 'key')
+
+    # get URL-encoded data
+    data = urllib.urlencode({'data': datastore.json_repr()})
+
+    # create connection
+    connection = httplib.HTTPConnection(config.get('destination', 'host'), \
+    config.get('destination', 'port'), \
+    timeout=config.get('destination', 'timeout'))
+
+    # create headers
+    headers = {"Content-type": "application/x-www-form-urlencoded", \
+    "Accept": "text/plain"}
+
+    # make request
+    connection.request('POST', path, data, headers)
+
+    # response
+    response = connection.getresponse()
+
+    # check response
+    if response.status is not 200:
+        raise Exception('There was an issue sending data: {0}'.format(response))

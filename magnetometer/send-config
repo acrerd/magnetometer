@@ -1,0 +1,10 @@
+[source]
+host = localhost
+port = 50000
+
+[destination]
+host = ariel.astro.gla.ac.uk
+port = 50000
+path = /insert
+timeout = 5
+key = UuF0ZUOyCIEJ4RmqMepvOv
