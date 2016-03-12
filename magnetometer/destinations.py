@@ -93,7 +93,7 @@ def send_to_server(datastore, config):
     """
 
     # create path with GET key
-    path = config.get('destination', 'path') + "?" \
+    path = config.get('destination', 'path') + "?key=" \
     + config.get('destination', 'key')
 
     # get URL-encoded data
