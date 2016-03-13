@@ -116,4 +116,4 @@ def send_to_server(datastore, config):
 
     # check response
     if response.status is not 200:
-        raise Exception('There was an issue sending data: {0}'.format(response))
+        raise Exception('There was an issue sending data: {0}'.format(response.read()))
