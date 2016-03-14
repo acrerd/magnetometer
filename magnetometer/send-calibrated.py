@@ -65,7 +65,11 @@ while True:
     time.sleep(sleep_time)
 
     # get data
-    data = server.get_command_response("dataafter {0}".format(timestamp))
+    try:
+        data = server.get_command_response("dataafter {0}".format(timestamp))
+    except Exception:
+        # skip this iteration
+        continue
 
     # only do something if the data is useful
     if data is not None:
