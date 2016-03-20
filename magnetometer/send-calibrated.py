@@ -52,7 +52,7 @@ config.get('destination', 'port'), config.get('destination', 'base_path'), \
 config.get('destination', 'key'), config.get('destination', 'timeout'))
 
 # set sleep time
-sleep_time = 10
+sleep_time = int(config.get('general', 'sleep_time'))
 
 # default timestamp
 timestamp = 0
@@ -105,13 +105,15 @@ while True:
         conversion_callbacks=[calibration.scale_counts_to_volts, \
         calibration.scale_volts_to_nt_and_degrees])
     except Exception as e:
-        print("Data \"{0}\" appears to be invalid: {1}".format(data, e))
+        print("Data appears to be invalid: {0}".format(e))
 
         # skip this iteration
         continue
 
     # do we have any new readings?
     if len(datastore.readings) < 1:
+        print("No readings present in datastore")
+
         # skip this iteration
         continue
 

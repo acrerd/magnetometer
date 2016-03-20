@@ -1,3 +1,6 @@
+[general]
+sleep_time = 5
+
 [source]
 host = localhost
 port = 50000
