@@ -5,6 +5,7 @@ import os
 import datetime
 import urllib
 import httplib
+import socket
 
 """Network and local I/O functions"""
 
@@ -135,17 +136,14 @@ class Server(object):
         # debug output
         httplib.HTTPConnection.debuglevel = 1
 
-        # get connection
-        connection = httplib.HTTPConnection(self.host, int(self.port), \
-        timeout=int(self.timeout))
-
         # set the socket timeout (necessary for _proper_ timeout handling,
         # otherwise the above timeout setting is ignored in favour of a usually
         # shorter socket timeout)
-        connection.sock.settimeout(self.timeout)
+        socket.setdefaulttimeout(self.timeout)
 
-        # return connection
-        return connection
+        # return connection, with same timeout as socket
+        return httplib.HTTPConnection(self.host, int(self.port), \
+        timeout=int(self.timeout))
 
     def get(self, path, connection=None, parameters={}, **kwargs):
         """Returns the response to the specified command"""
