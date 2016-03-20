@@ -275,11 +275,6 @@ class Server(object):
         :param data: data to send
         """
 
-        # check the connection is relevant
-        if connection.host != self.host or connection.port is not self.port:
-            raise ConnectionException("Specified connection is not for this \
-object's host and/or port")
-
         # make request
         connection.request("PUT", full_path, data, **kwargs)
 
