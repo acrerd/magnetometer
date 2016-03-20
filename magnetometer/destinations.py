@@ -331,8 +331,8 @@ class DataServer(Server):
         """Gets the datetime of the server's latest data"""
 
         # get timestamp
-        timestamp = self.get("{0}/{1}/{2}".format(str(self.key), \
-        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))
+        timestamp = float(self.get("{0}/{1}/{2}".format(str(self.key), \
+        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND)))
 
         # return datetime object
         return datetime.datetime.utcfromtimestamp(timestamp)
