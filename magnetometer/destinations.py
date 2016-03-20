@@ -139,7 +139,7 @@ class Server(object):
         # set the socket timeout (necessary for _proper_ timeout handling,
         # otherwise the above timeout setting is ignored in favour of a usually
         # shorter socket timeout)
-        socket.setdefaulttimeout(self.timeout)
+        socket.setdefaulttimeout(int(self.timeout))
 
         # return connection, with same timeout as socket
         return httplib.HTTPConnection(self.host, int(self.port), \
