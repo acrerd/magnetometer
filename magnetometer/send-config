@@ -7,4 +7,4 @@ host = ariel.astro.gla.ac.uk
 port = 50000
 base_path = /api
 key = UuF0ZUOyCIEJ4RmqMepvOv
-timeout = 5
+timeout = 15
