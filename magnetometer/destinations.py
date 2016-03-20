@@ -165,12 +165,14 @@ class Server(object):
         # get the response
         response = self._get_response(full_path, connection, **kwargs)
 
+        # return response status and message
+        response_info = (response.status, response.read())
+
         # close the connection
         if close_connection:
             connection.close()
 
-        # return response
-        return response
+        return response_info
 
     def put(self, data, path, connection=None, parameters={}, **kwargs):
         """Returns the respose to the specified command containing PUSH data
@@ -195,12 +197,14 @@ class Server(object):
         # get the response
         response = self._put_response(data, full_path, connection, **kwargs)
 
+        # return response status and message
+        response_info = (response.status, response.read())
+
         # close the connection
         if close_connection:
             connection.close()
 
-        # return response
-        return response
+        return response_info
 
     def puts(self, data, parameters={}, headers={}, **kwargs):
         """Returns responses to the specified command for each set of data \
@@ -309,11 +313,11 @@ class DataServer(Server):
         responses = self.puts(data, parameters, headers)
 
         # check the responses are all 201
-        for response in responses:
+        for status, message in responses:
             # check if there was a problem
-            if response.status is not 201:
+            if status is not 201:
                 raise ConnectionException("There was a problem with the request: \
-    [{0}] {1}".format(response.status, response.reason))
+    [{0}] {1}".format(status, message))
 
         # if we get this far without an exception, everything was ok
         # return the number of successful responses
@@ -323,19 +327,16 @@ class DataServer(Server):
         """Gets the datetime of the server's latest data"""
 
         # get timestamp response
-        response = self.get("{0}/{1}/{2}".format(str(self.key), \
+        status, message = self.get("{0}/{1}/{2}".format(str(self.key), \
         self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))
 
         # check response
-        if response.status is not 200:
+        if status is not 200:
             raise ConnectionException("There was a problem with the request: \
-[{0}] {1}".format(response.status, response.reason))
+[{0}] {1}".format(status, message))
 
-        # convert from ms to s
-        timestamp = float(response.read()) / 1000
-
-        # return datetime object
-        return datetime.datetime.utcfromtimestamp(timestamp)
+        # convert timestamp from ms to s and return datetime object
+        return datetime.datetime.utcfromtimestamp(float(message) / 1000)
 
 class ConnectionException(Exception):
     pass
