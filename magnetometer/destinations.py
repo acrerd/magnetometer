@@ -6,7 +6,7 @@ import datetime
 import urllib
 import httplib
 
-"""File I/O functions"""
+"""Network and local I/O functions"""
 
 def save_readings(basepath, datastore):
     """Saves the readings to the specified path, in a directory representing \
@@ -85,35 +85,257 @@ def get_storage_path(basepath, time_obj):
 
     return path
 
-def send_to_server(datastore, config):
-    """Sends the data in the specified datastore to the server in the config
+class Server(object):
+    """Represents a server to send data to"""
 
-    :param datastore: datastore to send
-    :param config: config settings for destination
-    """
+    """Host"""
+    host = None
 
-    # create path with GET key
-    path = config.get('destination', 'path') + "?key=" \
-    + config.get('destination', 'key')
+    """Port"""
+    port = None
 
-    # get URL-encoded data
-    data = urllib.urlencode({'data': datastore.json_repr()})
+    """Base path"""
+    base_path = None
 
-    # create connection
-    connection = httplib.HTTPConnection(config.get('destination', 'host'), \
-    int(config.get('destination', 'port')), \
-    timeout=int(config.get('destination', 'timeout')))
+    """Key"""
+    key = None
 
-    # create headers
-    headers = {"Content-type": "application/x-www-form-urlencoded", \
-    "Accept": "text/plain"}
+    """Timeout"""
+    timeout = None
 
-    # make request
-    connection.request('POST', path, data, headers)
+    """Connection"""
+    connection = None
 
-    # response
-    response = connection.getresponse()
+    def __init__(self, host, port, base_path, key, timeout=5):
+        self.host = host
+        self.port = port
+        self.base_path = base_path
+        self.key = key
+        self.timeout = timeout
 
-    # check response
-    if response.status is not 200:
-        raise Exception('There was an issue sending data: {0}'.format(response.read()))
+    def create_path_string(self, path, parameters):
+        """Creates a path string using the specified base path and additional \
+        arguments, transparently adding the key
+
+        :param path: path, without arguments
+        :param parameters: dict containing additional arguments
+        """
+
+        # set key
+        parameters["key"] = self.key
+
+        # create full path
+        full_path = "{0}/{1}".format(self.base_path, path)
+
+        # return GET string
+        return "{0}?{1}".format(full_path, "&".join( \
+        ["{0}={1}".format(key, value) for key, value in parameters.items()]))
+
+    def _get_connection(self):
+        httplib.HTTPConnection.debuglevel = 1
+
+        # create and return connection
+        return httplib.HTTPConnection(self.host, int(self.port), \
+        timeout=int(self.timeout))
+
+    def get(self, path, connection=None, parameters={}, **kwargs):
+        """Returns the response to the specified command"""
+
+        # create the path
+        full_path = self.create_path_string(path, parameters)
+
+        # whether to close connection
+        close_connection = False
+
+        # create connection if necessary
+        if connection is None:
+            # create a new connection
+            connection = self._get_connection()
+
+            # close the connection
+            close_connection = True
+
+        # get the response
+        response = self._get_response(full_path, connection, **kwargs)
+
+        # close the connection
+        if close_connection:
+            connection.close()
+
+        # return response
+        return response
+
+    def put(self, data, path, connection=None, parameters={}, **kwargs):
+        """Returns the respose to the specified command containing PUSH data
+
+        :param data: data dict to send to the server
+        """
+
+        # create the path
+        full_path = self.create_path_string(path, parameters)
+
+        # whether to close connection
+        close_connection = False
+
+        # create connection if necessary
+        if connection is None:
+            # create a new connection
+            connection = self._get_connection()
+
+            # close the connection
+            close_connection = True
+
+        # get the response
+        response = self._put_response(data, full_path, connection, **kwargs)
+
+        # close the connection
+        if close_connection:
+            connection.close()
+
+        # return response
+        return response
+
+    def puts(self, data, parameters={}, headers={}, **kwargs):
+        """Returns responses to the specified command for each set of data \
+        provided, using the same connection
+
+        :param data: list of dicts containing the path and data to send
+        """
+
+        # create a persistent connection
+        connection = self._get_connection()
+
+        # set keep-alive clause to the headers
+        headers["Connection"] = "keep-alive"
+
+        # loop over data, getting responses
+        responses = [self.put(row["data"], row["path"], connection, parameters, \
+        **kwargs) for row in data]
+
+        # close the connection
+        connection.close()
+
+        # return the list of responses
+        return responses
+
+    def _get_response(self, full_path, connection, **kwargs):
+        """Returns the response to the specified command"""
+
+        # get response
+        response = self._get_request(full_path, connection, **kwargs)
+
+        # return response message
+        return self._handle_response(response)
+
+    def _put_response(self, data, full_path, connection, **kwargs):
+        """Returns the respose to the specified command containing PUT data
+
+        :param data: data dict to send to the server
+        """
+
+        # get response
+        response = self._put_request(full_path, connection, data, **kwargs)
+
+        # return response message
+        return self._handle_response(response)
+
+    def _handle_response(self, response):
+        """Handles the specified response, raising an exception if there is a \
+        problem"""
+
+        # check if there was a problem
+        if response.status is not 200:
+            raise ConnectionException("There was a problem with the request: \
+[{0}] {1}".format(response.status, response.reason))
+
+        # return the reply
+        return response.read()
+
+    def _get_request(self, full_path, connection, **kwargs):
+        """Returns the server's message and status to the specified command \
+        using an HTTP GET request.
+
+        :param path: GET path
+        :param connection: connection to use
+        """
+
+        # make request
+        connection.request("GET", full_path, **kwargs)
+
+        # return the response
+        return connection.getresponse()
+
+    def _put_request(self, full_path, connection, data, **kwargs):
+        """Returns the server's message and status to the specified data.
+
+        Uses the specified connection if not None.
+
+        :param full_path: URL path
+        :param connection: connection to use
+        :param data: data to send
+        """
+
+        # check the connection is relevant
+        if connection.host != self.host or connection.port is not self.port:
+            raise ConnectionException("Specified connection is not for this \
+object's host and/or port")
+
+        # make request
+        connection.request("PUT", full_path, data, **kwargs)
+
+        # return the response
+        return connection.getresponse()
+
+    def default_parameters(self):
+        """Returns the default parameters dict"""
+
+        return {"key": self.key}
+
+class DataServer(Server):
+    """Represents a data server"""
+
+    """Data command"""
+    DATA_COMMAND = "data"
+
+    """Latest data command"""
+    LATEST_DATA_COMMAND = "data/latest"
+
+    """Timestamp command"""
+    TIMESTAMP_COMMAND = "timestamp"
+
+    def send_datastore(self, datastore):
+        """Sends the data in the specified datastore to the server
+
+        :param datastore: datastore to send
+        """
+
+        # get parameters
+        parameters = self.default_parameters()
+
+        # create JSON header
+        headers = {"Content-Type": "application/json"}
+
+        # create list of dicts representing each reading
+        data = [{"data": reading.json_repr(), \
+        "path": "{0}/{1}/{2}".format(str(self.key), self.DATA_COMMAND, \
+        str(reading.reading_time))} for reading in datastore.readings]
+
+        # get responses
+        responses = self.puts(data, parameters, headers)
+
+        # if we get this far without an exception, everything was ok
+        # return the number of successful responses
+        return len(responses)
+
+    def get_latest_time(self):
+        """Gets the datetime of the server's latest data"""
+
+        # get timestamp
+        timestamp = self.get("{0}/{1}/{2}".format(str(self.key), \
+        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))
+
+        # return datetime object
+        return datetime.datetime.utcfromtimestamp(timestamp)
+
+class ConnectionException(Exception):
+    pass

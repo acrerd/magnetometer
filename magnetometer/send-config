@@ -5,6 +5,6 @@ port = 50000
 [destination]
 host = ariel.astro.gla.ac.uk
 port = 50000
-path = /insert
-timeout = 5
+base_path = /api
 key = UuF0ZUOyCIEJ4RmqMepvOv
+timeout = 5
