@@ -122,9 +122,6 @@ class Server(object):
         :param parameters: dict containing additional arguments
         """
 
-        # set key
-        parameters["key"] = self.key
-
         # create full path
         full_path = "{0}/{1}".format(self.base_path, path)
 
