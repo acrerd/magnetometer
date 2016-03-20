@@ -132,11 +132,20 @@ class Server(object):
         ["{0}={1}".format(key, value) for key, value in parameters.items()]))
 
     def _get_connection(self):
+        # debug output
         httplib.HTTPConnection.debuglevel = 1
 
-        # create and return connection
-        return httplib.HTTPConnection(self.host, int(self.port), \
+        # get connection
+        connection = httplib.HTTPConnection(self.host, int(self.port), \
         timeout=int(self.timeout))
+
+        # set the socket timeout (necessary for _proper_ timeout handling,
+        # otherwise the above timeout setting is ignored in favour of a usually
+        # shorter socket timeout)
+        connection.sock.settimeout(self.timeout)
+
+        # return connection
+        return connection
 
     def get(self, path, connection=None, parameters={}, **kwargs):
         """Returns the response to the specified command"""
@@ -222,10 +231,7 @@ class Server(object):
         """Returns the response to the specified command"""
 
         # get response
-        response = self._get_request(full_path, connection, **kwargs)
-
-        # return response message
-        return self._handle_response(response)
+        return self._get_request(full_path, connection, **kwargs)
 
     def _put_response(self, data, full_path, connection, **kwargs):
         """Returns the respose to the specified command containing PUT data
@@ -234,22 +240,7 @@ class Server(object):
         """
 
         # get response
-        response = self._put_request(full_path, connection, data, **kwargs)
-
-        # return response message
-        return self._handle_response(response)
-
-    def _handle_response(self, response):
-        """Handles the specified response, raising an exception if there is a \
-        problem"""
-
-        # check if there was a problem
-        if response.status is not 200:
-            raise ConnectionException("There was a problem with the request: \
-[{0}] {1}".format(response.status, response.reason))
-
-        # return the reply
-        return response.read()
+        return self._put_request(full_path, connection, data, **kwargs)
 
     def _get_request(self, full_path, connection, **kwargs):
         """Returns the server's message and status to the specified command \
@@ -284,7 +275,8 @@ class Server(object):
     def default_parameters(self):
         """Returns the default parameters dict"""
 
-        return {"key": self.key}
+        # empty
+        return {}
 
 class DataServer(Server):
     """Represents a data server"""
@@ -318,6 +310,13 @@ class DataServer(Server):
         # get responses
         responses = self.puts(data, parameters, headers)
 
+        # check the responses are all 201
+        for response in responses:
+            # check if there was a problem
+            if response.status is not 201:
+                raise ConnectionException("There was a problem with the request: \
+    [{0}] {1}".format(response.status, response.reason))
+
         # if we get this far without an exception, everything was ok
         # return the number of successful responses
         return len(responses)
@@ -325,9 +324,17 @@ class DataServer(Server):
     def get_latest_time(self):
         """Gets the datetime of the server's latest data"""
 
-        # get timestamp, converting from ms to s
-        timestamp = float(self.get("{0}/{1}/{2}".format(str(self.key), \
-        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))) / 1000
+        # get timestamp response
+        response = self.get("{0}/{1}/{2}".format(str(self.key), \
+        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))
+
+        # check response
+        if response.status is not 200:
+            raise ConnectionException("There was a problem with the request: \
+[{0}] {1}".format(response.status, response.reason))
+
+        # convert from ms to s
+        timestamp = float(response.read()) / 1000
 
         # return datetime object
         return datetime.datetime.utcfromtimestamp(timestamp)
