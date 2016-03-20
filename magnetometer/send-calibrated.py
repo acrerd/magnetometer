@@ -79,12 +79,12 @@ while True:
         continue
 
     # get timestamp from datetime object
-    last_data_timestamp = time.mktime(last_data_time.time_tuple())
+    last_data_timestamp = time.mktime(last_data_time.timetuple())
 
     # get data
     try:
         data = server.get_command_response("dataafter {0}".format( \
-        str(timestamp)))
+        str(last_data_timestamp)))
     except Exception as e:
         print(e)
 
