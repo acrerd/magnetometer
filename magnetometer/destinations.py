@@ -330,9 +330,9 @@ class DataServer(Server):
     def get_latest_time(self):
         """Gets the datetime of the server's latest data"""
 
-        # get timestamp
+        # get timestamp, converting from ms to s
         timestamp = float(self.get("{0}/{1}/{2}".format(str(self.key), \
-        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND)))
+        self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))) / 1000
 
         # return datetime object
         return datetime.datetime.utcfromtimestamp(timestamp)
