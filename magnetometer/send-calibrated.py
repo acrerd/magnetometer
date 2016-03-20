@@ -105,7 +105,7 @@ while True:
         conversion_callbacks=[calibration.scale_counts_to_volts, \
         calibration.scale_volts_to_nt_and_degrees])
     except Exception as e:
-        print("Data "{0}" appears to be invalid: {1}".format(data, e))
+        print("Data \"{0}\" appears to be invalid: {1}".format(data, e))
 
         # skip this iteration
         continue
