@@ -78,8 +78,8 @@ while True:
         # skip this iteration
         continue
 
-    # get timestamp from datetime object
-    last_data_timestamp = time.mktime(last_data_time.timetuple())
+    # get timestamp from datetime object, in ms
+    last_data_timestamp = time.mktime(last_data_time.timetuple()) * 1000
 
     # get data
     try:
@@ -94,7 +94,7 @@ while True:
     # only do something if the data is useful
     if data is None:
         print("Skipped empty data from server [timestamp = {0}]".format( \
-        timestamp))
+        str(last_data_timestamp)))
 
         # skip this iteration
         continue
