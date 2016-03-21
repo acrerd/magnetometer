@@ -300,7 +300,7 @@ class DataServer(Server):
 
         # create list of dicts representing each reading
         data = [{"data": reading.json_repr(), \
-        "path": "/{0}/{1}/{2}".format(str(self.key), self.DATA_COMMAND, \
+        "path": "{0}/{1}/{2}".format(str(self.key), self.DATA_COMMAND, \
         str(reading.reading_time))} for reading in datastore.readings]
 
         # get responses
@@ -321,7 +321,7 @@ class DataServer(Server):
         """Gets the datetime of the server's latest data"""
 
         # get timestamp response
-        status, message = self.get("/{0}/{1}/{2}".format(str(self.key), \
+        status, message = self.get("{0}/{1}/{2}".format(str(self.key), \
         self.LATEST_DATA_COMMAND, self.TIMESTAMP_COMMAND))
 
         # check response
