@@ -73,7 +73,7 @@ while True:
     try:
         last_data_time = send_server.get_latest_time()
     except ConnectionException as e:
-        print(e)
+        print("ConnectionException: {0}".format(e))
 
         # skip this iteration
         continue
@@ -86,7 +86,7 @@ while True:
         data = server.get_command_response("dataafter {0}".format( \
         str(last_data_timestamp)))
     except Exception as e:
-        print(e)
+        print("Exception: {0}".format(e))
 
         # skip this iteration
         continue
