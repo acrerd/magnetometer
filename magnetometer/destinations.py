@@ -133,14 +133,16 @@ class Server(object):
         # debug output
         httplib.HTTPConnection.debuglevel = 1
 
-        # set the socket timeout (necessary for _proper_ timeout handling,
+        # get connection, with same timeout as socket
+        connection = httplib.HTTPConnection(self.host, int(self.port), \
+        timeout=int(self.timeout))
+	
+	# set the socket timeout (necessary for _proper_ timeout handling,
         # otherwise the above timeout setting is ignored in favour of a usually
         # shorter socket timeout)
-        socket.setdefaulttimeout(int(self.timeout))
-
-        # return connection, with same timeout as socket
-        return httplib.HTTPConnection(self.host, int(self.port), \
-        timeout=int(self.timeout))
+        connection.sock.settimeout(int(self.timeout))
+	
+	return connection
 
     def get(self, path, connection=None, parameters={}, **kwargs):
         """Returns the response to the specified command"""
