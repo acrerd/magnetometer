@@ -137,14 +137,6 @@ class Server(object):
         connection = httplib.HTTPConnection(self.host, int(self.port), \
         timeout=int(self.timeout))
 	
-	# connect
-	connection.connect()
-	
-	# set the socket timeout (necessary for _proper_ timeout handling,
-        # otherwise the above timeout setting is ignored in favour of a usually
-        # shorter socket timeout)
-        connection.sock.settimeout(int(self.timeout))
-	
 	return connection
 
     def get(self, path, connection=None, parameters={}, **kwargs):
