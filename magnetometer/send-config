@@ -4,6 +4,7 @@ sleep_time = 5
 [source]
 host = localhost
 port = 50000
+timeout = 15
 
 [destination]
 host = ariel.astro.gla.ac.uk

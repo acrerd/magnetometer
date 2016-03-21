@@ -44,7 +44,7 @@ config.read(config_path)
 
 # create a new server socket instance
 server = ServerSocket(config.get('source', 'host'), \
-config.get('source', 'port'))
+config.get('source', 'port'), timeout=config.get('source', 'timeout'))
 
 # create new data server instance
 send_server = DataServer(config.get('destination', 'host'), \
@@ -109,12 +109,12 @@ while True:
     while True:
         try:
             send_server.send_datastore(datastore)
-            
+
             break
         except ConnectionException as e:
             print("Error processing dataafter {0}: {1} - trying again after pause".format(timestamp, e))
-            
+
             time.sleep(0.5)
-    
+
     # update timestamp
     timestamp = datastore.readings[-1].reading_time
