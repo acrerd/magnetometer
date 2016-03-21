@@ -69,22 +69,10 @@ while True:
     # sleep for specified time
     time.sleep(sleep_time)
 
-    # get the client's last data point
-    try:
-        last_data_time = send_server.get_latest_time()
-    except ConnectionException as e:
-        print("ConnectionException: {0}".format(e))
-
-        # skip this iteration
-        continue
-
-    # get timestamp from datetime object, in ms
-    last_data_timestamp = time.mktime(last_data_time.timetuple()) * 1000
-
     # get data
     try:
         data = server.get_command_response("dataafter {0}".format( \
-        str(last_data_timestamp)))
+        str(timestamp)))
     except Exception as e:
         print("Exception: {0}".format(e))
 
@@ -94,7 +82,7 @@ while True:
     # only do something if the data is useful
     if data is None:
         print("Skipped empty data from server [timestamp = {0}]".format( \
-        str(last_data_timestamp)))
+        str(timestamp)))
 
         # skip this iteration
         continue
@@ -122,3 +110,6 @@ while True:
         send_server.send_datastore(datastore)
     except ConnectionException as e:
         print("Error processing dataafter {0}: {1}".format(timestamp, e))
+    
+    # update timestamp
+    timestamp = datastore.readings[-1].reading_time
