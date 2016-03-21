@@ -106,10 +106,15 @@ while True:
         continue
 
     # send data to server
-    try:
-        send_server.send_datastore(datastore)
-    except ConnectionException as e:
-        print("Error processing dataafter {0}: {1}".format(timestamp, e))
+    while True:
+        try:
+            send_server.send_datastore(datastore)
+            
+            break
+        except ConnectionException as e:
+            print("Error processing dataafter {0}: {1} - trying again after pause".format(timestamp, e))
+            
+            time.sleep(0.5)
     
     # update timestamp
     timestamp = datastore.readings[-1].reading_time
