@@ -44,7 +44,7 @@ def save_readings(basepath, datastore):
             f = open_with_create(get_storage_path(basepath, this_time), "a")
 
         # this time tuple
-        this_time_tuple = this_time.timetuple()
+        this_time_tuple = this_time.utctimetuple()
 
         # date delta since midnight
         delta = (this_time - datetime.datetime(*this_time_tuple[0:3]))
@@ -136,7 +136,7 @@ class Server(object):
         # get connection, with same timeout as socket
         connection = httplib.HTTPConnection(self.host, int(self.port), \
         timeout=int(self.timeout))
-	
+
 	return connection
 
     def get(self, path, connection=None, parameters={}, **kwargs):
