@@ -111,9 +111,11 @@ while True:
             send_server.send_datastore(datastore)
 
             break
-        except ConnectionException as e:
+        except Exception as e:
+            # catch all exceptions, and print the message to stream
             print("Error processing dataafter {0}: {1} - trying again after pause".format(timestamp, e))
 
+            # sleep
             time.sleep(0.5)
 
     # update timestamp
