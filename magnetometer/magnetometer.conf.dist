@@ -1,0 +1,24 @@
+[logging]
+file = /tmp/magnetometer.log
+format = %(name)-16s - %(levelname)-10s - %(message)s
+level = debug
+file_count = 5
+
+[server]
+host = localhost
+port = 8080
+default_readings_per_request = 100
+max_readings_per_request = 1000
+default_format = json
+
+[datastore]
+size = 1000
+
+[ftp]
+poll_time = 15000
+host = ftp.example.com
+port = 21
+username = anonymous
+password = anonymous
+local_dir = /tmp/magnetometer-data
+remote_dir = /
