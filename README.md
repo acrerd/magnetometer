@@ -1,18 +1,33 @@
 # Magnetometer
 Scripts to operate and log data from the Acre Road magnetometer.
 
-## Requirements ##
-You must have the [Python PicoLog ADC library](https://github.com/SeanDS/picolog-adc-python) on your PYTHONPATH. It
-has its own set of prerequisites.
+## Requirements
+  * Python 3.5+
+  * [DataLog](https://github.com/SeanDS/datalog)
+  * libffi-dev
+  * bottle
+  * appdirs
+  * pyftpsync
 
-## Quick Start ##
-Run `save-calibrated.py` with `<host>`, `<port>` and `<path>` arguments to specify the [PicoLog ADC server](https://github.com/SeanDS/picolog-adc-python) host and port and the directory in which to create the data archive. For example:
+You must have the [DataLog library](https://github.com/SeanDS/datalog),
+installed via `pip`, as well as `libffi-dev`, installed e.g. via `apt-get`.
+After that, installation is easily achieved via `pip`.
 
+## Installation
+Installation is handled by `setup.py`. This is most easily handled by `pip`:
 ```bash
-python save-calibrated localhost 50000 data
+pip3 install git+https://github.com/acrerd/magnetometer.git
 ```
 
-will start logging data from the server running on `localhost` port `50000` into the `data` directory.
+## Quick Start
+Run in a terminal:
+```bash
+magnetometer
+```
+
+The configuration file is located at `~/.config/magnetometer/magnetometer.conf`
+on most Debian-based operating systems. This contains parameters for setting the
+server, FTP, logging and other behaviours.
 
 Sean Leavey  
 https://github.com/SeanDS/
