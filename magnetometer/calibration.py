@@ -1,13 +1,11 @@
-from __future__ import print_function, division
-
 """Calibration scripts for University of Glasgow Observatory magnetometer"""
 
-"""Conversion factors for each channel (this must be set externally)"""
-conversion = []
+# conversion factors for each channel (this must be set externally)
+CONVERSION = []
 
 def scale_counts_to_volts(sample_values):
-    return [int(sample) * factor for sample, factor \
-    in zip(sample_values, conversion)]
+    return [int(sample) * factor
+            for sample, factor in zip(sample_values, CONVERSION)]
 
 def scale_volts_to_nt_and_degrees(sample_values):
     """Scales voltages from magnetometer to nanotesla and degrees
@@ -53,12 +51,12 @@ def scale_volts_to_nt_and_degrees(sample_values):
     v_measured_correction = v_measured_sum * r_wires / r_in
 
     # sample correction
-    v_sample_correction = [value * (1 + r_wires / r_in) \
-    for value in sample_values]
+    v_sample_correction = [value * (1 + r_wires / r_in)
+                           for value in sample_values]
 
     # corrected voltages
-    v_corrected = [v_sample + v_measured_correction \
-    for v_sample in v_sample_correction]
+    v_corrected = [v_sample + v_measured_correction
+                   for v_sample in v_sample_correction]
 
     # now convert to physical units
     v_corrected[0:3] = [v * b_scale for v in v_corrected[0:3]]
