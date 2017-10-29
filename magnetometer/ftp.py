@@ -54,6 +54,10 @@ class FtpPipe(Thread):
         # initialise threading
         Thread.__init__(self)
 
+        # time in ms between polls
+        self.poll_time = int(CONFIG["ftp"]["poll_time"])
+        logger.info("Poll time: {0:.2f} ms".format(self.poll_time))
+
         # default start time
         self.start_time = None
 
@@ -66,10 +70,6 @@ class FtpPipe(Thread):
     def run(self):
         """Starts piping magnetometer data"""
 
-        # time in ms between polls
-        poll_time = int(CONFIG["ftp"]["poll_time"])
-        logger.info("Poll time: {0:.2f} ms".format(poll_time))
-
         # now
         now = datetime.datetime.utcnow()
 
@@ -81,6 +81,12 @@ class FtpPipe(Thread):
 
         # set status on
         self.retrieving = True
+
+        # create local directory if it doesn't exist
+        if not os.path.exists(CONFIG["ftp"]["local_dir"]):
+            logger.debug("Creating local directory %s",
+                         CONFIG["ftp"]["local_dir"])
+            os.makedirs(CONFIG["ftp"]["local_dir"])
 
         # create local file target
         local_target = FsTarget(CONFIG["ftp"]["local_dir"])
@@ -104,79 +110,105 @@ class FtpPipe(Thread):
                        "dry_run": False}
 
         # create downloader and uploader
-        ftp_downloader = DownloadSynchronizer(local_target,
-                                              remote_target,
-                                              download_opts)
+        self.ftp_downloader = DownloadSynchronizer(local_target,
+                                                   remote_target,
+                                                   download_opts)
 
         # look for existing file for today
-        ftp_downloader.run()
+        self.ftp_downloader.run()
 
         # create uploader
-        ftp_uploader = UploadSynchronizer(local_target,
-                                          remote_target,
-                                          upload_opts)
+        self.ftp_uploader = UploadSynchronizer(local_target,
+                                               remote_target,
+                                               upload_opts)
         # HACK: disable remote readonly - bug in pyftpsync
         remote_target.readonly = False
 
         # main run loop
         while self.retrieving:
-            # time in ms
-            current_time = int(round(time.time() * 1000))
+            self.process_records()
 
-            if current_time < self._next_poll_time:
-                # skip this loop
-                continue
+    def process_records(self):
+        # time in ms
+        now = int(round(time.time() * 1000))
 
-            # date
-            current_date = datetime.datetime.utcnow()
+        if now < self._next_poll_time:
+            # nothing to do
+            return
 
-            # midnight timestamp in ms
-            midnight_timestamp = self.midnight_time(current_date).timestamp() * 1000
+        # UTC dates
+        one_day = datetime.timedelta(days=1)
+        today = datetime.datetime.utcnow()
+        tomorrow = today + one_day
+        yesterday = today - one_day
+        day_before_yesterday = yesterday - one_day
 
-            # ms since start
-            time_since_start = current_time - self.start_time
+        # midnight timestamps in ms
+        midnight_today = self.midnight_date(today).timestamp() * 1000
+        midnight_tomorrow = self.midnight_date(tomorrow).timestamp() * 1000
 
-            # get today's file path
-            file_path = self.date_path(current_date)
+        # get file paths
+        today_file_path = self.date_path(today)
+        yesterday_file_path = self.date_path(yesterday)
+        day_before_yesterday_file_path = self.date_path(day_before_yesterday)
 
-            # default pivot is midnight
-            pivot_timestamp = midnight_timestamp
+        # default pivot is midnight (used when no local data has been recorded
+        # in last day)
+        pivot_timestamp = midnight_today
 
-            # create path if it doesn't exist
-            if not os.path.isfile(file_path):
-                # touch file
-                open(file_path, 'a').close()
-            else:
-                # get latest line from file
-                latest_line = self.latest_line(file_path)
+        # create path if it doesn't exist
+        if not os.path.isfile(today_file_path):
+            # get last reading from yesterday
+            latest_line = self.latest_line(yesterday_file_path)
 
-                if latest_line:
-                    # last reading's time since midnight
-                    latest_time_ms = int(latest_line.split()[0])
+            # touch file
+            open(today_file_path, 'a').close()
+        else:
+            # get latest line from file
+            latest_line = self.latest_line(today_file_path)
 
-                    # equivalent timestamp
-                    pivot_timestamp += latest_time_ms
+        if latest_line:
+            # last reading's time since midnight
+            latest_time_ms = int(latest_line.split()[0])
 
-            # pivot time for latest reading
-            latest_data = self.next_readings(pivot_timestamp)
+            # equivalent timestamp
+            pivot_timestamp += latest_time_ms
 
-            if latest_data:
-                # readings to store
-                with open(file_path, 'a') as obj:
-                    for reading in latest_data.get_readings():
-                        # convert reading time to seconds since midnight
-                        reading.reading_time = int(round(reading.reading_time -
-                                                         midnight_timestamp))
+        # latest reading
+        latest_data = self.next_readings(pivot_timestamp)
 
-                        # write line
-                        print(reading.whitespace_repr(), file=obj)
+        new_data_count = 0
 
+        if latest_data:
+            # readings to store
+            with open(today_file_path, 'a') as obj:
+                for reading in latest_data.get_readings():
+                    # check reading still applies to today
+                    if reading.reading_time >= midnight_tomorrow:
+                        continue
+
+                    # convert reading time to seconds since midnight
+                    reading.reading_time = int(round(reading.reading_time -
+                                                     midnight_today))
+
+                    # write line
+                    print(reading.whitespace_repr(), file=obj)
+
+                    new_data_count += 1
+
+        if new_data_count:
             # upload latest version of the file
             logger.debug("Uploading latest data to FTP")
-            ftp_uploader.run()
+            self.ftp_uploader.run()
 
-            # set the next poll time
-            self._next_poll_time += poll_time
+        # clean up old files
+        if os.path.isfile(day_before_yesterday_file_path):
+            logger.debug("Removing old local file: %s",
+                         day_before_yesterday_file_path)
+            os.remove(day_before_yesterday_file_path)
+
+        # set the next poll time
+        self._next_poll_time += self.poll_time
 
     def stop(self):
         """Stops the FTP pipe"""
@@ -204,7 +236,7 @@ class FtpPipe(Thread):
         return last
 
     @staticmethod
-    def midnight_time(date_now):
+    def midnight_date(date_now):
         return date_now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     @staticmethod

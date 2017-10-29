@@ -4,6 +4,8 @@ Scripts to operate and log data from the Acre Road magnetometer.
 ## Requirements
   * Python 3.5+
   * [DataLog](https://github.com/SeanDS/datalog)
+  * python3-dev
+  * libssl-dev
   * libffi-dev
   * bottle
   * appdirs
