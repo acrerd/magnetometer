@@ -158,12 +158,17 @@ class FtpPipe(Thread):
 
         # create path if it doesn't exist
         if not os.path.isfile(today_file_path):
+            logger.debug("Today's file doesn't exist; reading latest timestamp "
+                         "from yesterday's file and creating today's")
+
             # get last reading from yesterday
             latest_line = self.latest_line(yesterday_file_path)
 
             # touch file
             open(today_file_path, 'a').close()
         else:
+            logger.debug("Reading latest timestamp from today's file")
+
             # get latest line from file
             latest_line = self.latest_line(today_file_path)
 
