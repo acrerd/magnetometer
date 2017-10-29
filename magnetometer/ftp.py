@@ -156,6 +156,9 @@ class FtpPipe(Thread):
         # in last day)
         pivot_timestamp = midnight_today
 
+        # default latest local record line
+        latest_line = None
+
         # create path if it doesn't exist
         if not os.path.isfile(today_file_path):
             logger.debug("Today's file doesn't exist; creating today's")
