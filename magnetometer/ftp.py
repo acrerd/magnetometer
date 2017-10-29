@@ -146,6 +146,7 @@ class FtpPipe(Thread):
         # midnight timestamps in ms
         midnight_today = self.midnight_date(today).timestamp() * 1000
         midnight_tomorrow = self.midnight_date(tomorrow).timestamp() * 1000
+        midnight_yesterday = self.midnight_date(yesterday).timestamp() * 1000
 
         # get file paths
         today_file_path = self.date_path(today)
@@ -168,6 +169,9 @@ class FtpPipe(Thread):
                 logger.debug("Reading latest timestamp from yesterday's file")
                 latest_line = self.latest_line(yesterday_file_path)
 
+                # set pivot timestamp to yesterday's
+                pivot_timestamp = midnight_yesterday
+
             # touch file
             open(today_file_path, 'a').close()
         else:
@@ -188,8 +192,8 @@ class FtpPipe(Thread):
 
         new_data_count = 0
 
-        if latest_data:
-            # readings to store
+        if latest_data.num_readings:
+            # there are new readings to store
             with open(today_file_path, 'a') as obj:
                 for reading in latest_data.get_readings():
                     # check reading still applies to today
@@ -207,7 +211,7 @@ class FtpPipe(Thread):
 
         if new_data_count:
             # upload latest version of the file
-            logger.debug("Uploading latest data to FTP")
+            logger.debug("Uploading %i readings to FTP", new_data_count)
             self.ftp_uploader.run()
 
         # clean up old files
