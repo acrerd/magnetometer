@@ -9,7 +9,7 @@ from datalog.adc.adc import Adc
 from datalog.data import DataStore
 
 from .config import MagnetometerConfig
-from .calibration import CONVERSION, scale_counts_to_volts, \
+from .calibration import set_conversion, scale_counts_to_volts, \
                          scale_volts_to_nt_and_degrees
 from .network import run_server
 from .ftp import run_ftp
@@ -49,7 +49,8 @@ def run():
     # get retriever and FTP contexts
     with adc.get_retriever(datastore) as retriever, run_ftp() as ftp_pipe:
         # set conversion factors
-        CONVERSION = [adc.get_calibration(channel) for channel in adc.enabled_channels]
+        set_conversion([adc.get_calibration(channel) for channel
+                        in sorted(adc.enabled_channels)])
 
         # run server within contexts
         run_server(datastore)

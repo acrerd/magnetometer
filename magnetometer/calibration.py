@@ -1,7 +1,12 @@
 """Calibration scripts for University of Glasgow Observatory magnetometer"""
 
-# conversion factors for each channel (this must be set externally)
+# conversion factors for each channel
 CONVERSION = []
+
+def set_conversion(factors):
+    global CONVERSION
+
+    CONVERSION = list(factors)
 
 def scale_counts_to_volts(sample_values):
     return [int(sample) * factor
