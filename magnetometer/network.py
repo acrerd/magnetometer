@@ -104,8 +104,6 @@ def info():
     :rtype: string
     """
 
-    global START_TIME
-
     fmt = request.query.get("fmt", default=CONFIG["server"]["default_format"])
 
     # uptime
@@ -133,8 +131,6 @@ def handle_fixed_list(fmt, *args, **kwargs):
     :return: formatted data
     :rtype: string
     """
-
-    global DATASTORE
 
     if fmt == "json":
         return DATASTORE.json_repr(*args, **kwargs)
