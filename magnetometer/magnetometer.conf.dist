@@ -15,7 +15,7 @@ default_format = json
 size = 1000
 
 [ftp]
-poll_time = 15000
+poll_time = 60000
 host = ftp.example.com
 port = 21
 username = anonymous
