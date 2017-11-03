@@ -231,7 +231,7 @@ class FtpPipe(Thread):
 
     @staticmethod
     def date_filename(file_time):
-        return "%s-%s-%s.txt" % (file_time.year, file_time.month, file_time.day)
+        return file_time.strftime("%Y-%m-%d.txt")
 
     @classmethod
     def date_path(cls, file_time):
