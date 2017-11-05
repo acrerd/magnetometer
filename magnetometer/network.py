@@ -40,7 +40,8 @@ def run_server(datastore):
     START_TIME = int(round(time.time() * 1000))
 
     # create server
-    run(host=CONFIG["server"]["host"], port=int(CONFIG["server"]["port"]))
+    run(host=CONFIG["server"]["host"], port=int(CONFIG["server"]["port"]),
+        quiet=bool(CONFIG["server"]["quiet"]))
 
     logger.info("Web server stopped")
 

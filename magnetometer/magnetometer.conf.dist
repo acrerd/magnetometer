@@ -10,6 +10,7 @@ port = 8080
 default_readings_per_request = 100
 max_readings_per_request = 1000
 default_format = json
+quiet = 1
 
 [datastore]
 size = 1000
