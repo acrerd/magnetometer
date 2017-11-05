@@ -278,8 +278,10 @@ class FtpPipe(Thread):
 
     @classmethod
     def is_valid_file_path(cls, file_path):
+        base_file_path = os.path.basename(file_path)
+
         try:
-            datetime.datetime.strptime(file_path, cls.date_file_format())
+            datetime.datetime.strptime(base_file_path, cls.date_file_format())
         except ValueError:
             return False
 
