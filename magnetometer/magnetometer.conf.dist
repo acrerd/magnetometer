@@ -22,3 +22,4 @@ username = anonymous
 password = anonymous
 local_dir = /tmp/magnetometer-data
 remote_dir = /
+max_old_files = 7

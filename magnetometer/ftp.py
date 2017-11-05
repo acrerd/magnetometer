@@ -4,6 +4,7 @@ import os.path
 import time
 import datetime
 import logging
+import glob
 from threading import Thread
 import configparser
 from contextlib import contextmanager
@@ -48,6 +49,9 @@ def run_ftp():
 class FtpPipe(Thread):
     """Client to pipe data from the magnetometer server to a remote FTP server"""
 
+    FILE_DATE_FORMAT = "%Y-%m-%d"
+    FILE_EXTENSION = "txt"
+
     def __init__(self):
         """Initialises the FTP pipe"""
 
@@ -73,8 +77,8 @@ class FtpPipe(Thread):
         # now
         now = datetime.datetime.utcnow()
 
-        # start time (wait 10 seconds to allow server to start)
-        self.start_time = int(round(time.time() * 1000)) + 10000
+        # start time (wait one poll time period to allow server to start)
+        self.start_time = int(round(time.time() * 1000)) + self.poll_time
 
         # default next poll time
         self._next_poll_time = self.start_time
@@ -103,7 +107,7 @@ class FtpPipe(Thread):
                          "resolve": "remote",
                          "verbose": 3,
                          "dry_run": False,
-                         "match": [self.date_filename(now)]}
+                         "match": [self.filename_from_date(now)]}
         upload_opts = {"force": True,
                        "resolve": "local",
                        "verbose": 3,
@@ -129,96 +133,38 @@ class FtpPipe(Thread):
             self.process_records()
 
     def process_records(self):
-        # time in ms
+        # current timestamp in ms
         now = int(round(time.time() * 1000))
 
         if now < self._next_poll_time:
             # nothing to do
             return
 
-        # UTC dates
-        one_day = datetime.timedelta(days=1)
-        today = datetime.datetime.utcnow()
-        tomorrow = today + one_day
-        yesterday = today - one_day
-        day_before_yesterday = yesterday - one_day
+        # timestamp corresponding to last recorded measurement
+        pivot_timestamp = self.latest_recorded_timestamp()
 
-        # midnight timestamps in ms
-        midnight_today = self.midnight_date(today).timestamp() * 1000
-        midnight_tomorrow = self.midnight_date(tomorrow).timestamp() * 1000
-        midnight_yesterday = self.midnight_date(yesterday).timestamp() * 1000
-
-        # get file paths
-        today_file_path = self.date_path(today)
-        yesterday_file_path = self.date_path(yesterday)
-        day_before_yesterday_file_path = self.date_path(day_before_yesterday)
-
-        # default pivot is midnight (used when no local data has been recorded
-        # in last day)
-        pivot_timestamp = midnight_today
-
-        # default latest local record line
-        latest_line = None
-
-        # create path if it doesn't exist
-        if not os.path.isfile(today_file_path):
-            logger.debug("Today's file doesn't exist; creating today's")
-
-            if os.path.isfile(yesterday_file_path):
-                # get last reading from yesterday
-                logger.debug("Reading latest timestamp from yesterday's file")
-                latest_line = self.latest_line(yesterday_file_path)
-
-                # set pivot timestamp to yesterday's
-                pivot_timestamp = midnight_yesterday
-
-            # touch file
-            open(today_file_path, 'a').close()
-        else:
-            logger.debug("Reading latest timestamp from today's file")
-
-            # get latest line from file
-            latest_line = self.latest_line(today_file_path)
-
-        if latest_line:
-            # last reading's time since midnight
-            latest_time_ms = int(latest_line.split()[0])
-
-            # equivalent timestamp
-            pivot_timestamp += latest_time_ms
-
-        # latest reading
+        # get readings since last time records were stored
         latest_data = self.next_readings(pivot_timestamp)
 
-        new_data_count = 0
-
+        # check if there are new readings to store
         if latest_data.num_readings:
-            # there are new readings to store
-            with open(today_file_path, 'a') as obj:
-                for reading in latest_data.get_readings():
-                    # check reading still applies to today
-                    if reading.reading_time >= midnight_tomorrow:
-                        continue
+            # get readings grouped into days
+            groups = latest_data.get_datetime_grouped_readings()
 
-                    # convert reading time to seconds since midnight
-                    reading.reading_time = int(round(reading.reading_time -
-                                                     midnight_today))
+            # loop over each day
+            for current_date in sorted(groups):
+                # this date's full data file path
+                current_file_path = self.path_from_date(current_date)
 
-                    # write line
-                    print(reading.whitespace_repr(), file=obj)
+                self.store_readings(current_file_path, groups[current_date],
+                                    self.midnight_date(current_date))
 
-                    new_data_count += 1
-
-        if new_data_count:
             # upload latest version of the file
-            logger.debug("Uploading %i readings to FTP", new_data_count)
+            logger.debug("Synchronising new readings to FTP")
             self.ftp_uploader.run()
 
         # clean up old files
-        if os.path.isfile(day_before_yesterday_file_path):
-            logger.debug("Removing old local file: %s",
-                         day_before_yesterday_file_path)
-            os.remove(day_before_yesterday_file_path)
+        self.remove_old_files()
 
         # set the next poll time
         self._next_poll_time += self.poll_time
@@ -229,17 +175,95 @@ class FtpPipe(Thread):
         # stop retrieving data
         self.retrieving = False
 
+    def latest_recorded_timestamp(self):
+        # search for previous reading in reverse chronological order
+        logger.debug("Searching for latest recorded reading")
+        for file_path in self.data_file_walk():
+            if os.path.isfile(file_path):
+                # filename without directory path
+                filename = os.path.basename(file_path)
+
+                # look for reading
+                logger.debug("Searching %s", filename)
+                latest_line = self.latest_line(file_path)
+
+                if latest_line:
+                    logger.debug("Found latest reading in %s", filename)
+
+                    # filename without extension
+                    file_date = os.path.splitext(filename)[0]
+
+                    # date equivalent to filename
+                    midnight_date = datetime.datetime.strptime(filename,
+                        self.date_file_format())
+
+                    # milliseconds since midnight
+                    line_ms = int(latest_line.split()[0])
+
+                    # pivot time as midnight timestamp plus reading time, both
+                    # in milliseconds
+                    return int(midnight_date.timestamp() * 1000) + line_ms
+
+        logger.debug("Failed to find latest recorded reading")
+        return 0
+
     @staticmethod
-    def date_filename(file_time):
-        return file_time.strftime("%Y-%m-%d.txt")
+    def store_readings(filepath, readings, midnight):
+        with open(filepath, 'a') as obj:
+            for reading in readings:
+                # midnight timestamp in milliseconds
+                midnight_timestamp = int(midnight.timestamp()) * 1000
+
+                # convert reading time to seconds since midnight
+                reading.reading_time = int(round(reading.reading_time -
+                                                 midnight_timestamp))
+
+                # write line
+                print(reading.whitespace_repr(), file=obj)
+
+    def remove_old_files(self):
+        # number of files to keep
+        max_old_files = int(CONFIG["ftp"]["max_old_files"])
+
+        if max_old_files < 2:
+            raise ValueError("max_old_files must be >= 2")
+
+        # loop over files older than max_old_files
+        for filename in self.data_file_walk()[max_old_files:]:
+            logger.debug("Removing old local file: %s", filename)
+            os.remove(filename)
+
+    def data_file_walk(self, reverse=True):
+        # data directory
+        data_dir = CONFIG["ftp"]["local_dir"]
+
+        return sorted(glob.glob(os.path.join(data_dir, "*.txt")), reverse=reverse)
 
     @classmethod
-    def date_path(cls, file_time):
-        return os.path.join(CONFIG["ftp"]["local_dir"],
-                            cls.date_filename(file_time))
+    def filename_from_text(cls, base):
+        return base + os.path.extsep + cls.FILE_EXTENSION
+
+    @classmethod
+    def filename_from_date(cls, file_time):
+        return cls.filename_from_text(file_time.strftime(cls.FILE_DATE_FORMAT))
+
+    @classmethod
+    def data_file_path(cls, filename):
+        return os.path.join(CONFIG["ftp"]["local_dir"], filename)
+
+    @classmethod
+    def path_from_text(cls, base):
+        return cls.data_file_path(cls.filename_from_text(base))
+
+    @classmethod
+    def path_from_date(cls, file_time):
+        return cls.data_file_path(cls.filename_from_date(file_time))
 
     @classmethod
     def latest_line(cls, file_path):
+        if not cls.is_valid_file_path(file_path):
+            return None
+
         last = None
 
         with open(file_path, 'r') as obj:
@@ -247,6 +271,19 @@ class FtpPipe(Thread):
                 pass
 
         return last
+
+    @classmethod
+    def date_file_format(cls):
+        return cls.FILE_DATE_FORMAT + os.path.extsep + cls.FILE_EXTENSION
+
+    @classmethod
+    def is_valid_file_path(cls, file_path):
+        try:
+            datetime.datetime.strptime(file_path, cls.date_file_format())
+        except ValueError:
+            return False
+
+        return True
 
     @staticmethod
     def midnight_date(date_now):
