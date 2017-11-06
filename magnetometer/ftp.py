@@ -161,7 +161,12 @@ class FtpPipe(Thread):
 
             # upload latest version of the file
             logger.debug("Synchronising new readings to FTP")
-            self.ftp_uploader.run()
+            try:
+                self.ftp_uploader.run()
+            except RuntimeError:
+                # do nothing; try again next time
+                # this prevents FTP comms issues from killing the thread
+                pass
 
         # clean up old files
         self.remove_old_files()
@@ -209,6 +214,9 @@ class FtpPipe(Thread):
 
     @staticmethod
     def store_readings(filepath, readings, midnight):
+        if not os.path.isfile(filepath):
+            logger.debug("Creating %s", filepath)
+
         with open(filepath, 'a') as obj:
             for reading in readings:
                 # midnight timestamp in milliseconds
