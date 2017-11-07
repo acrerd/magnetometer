@@ -4,27 +4,46 @@ import os.path
 import time
 import datetime
 import logging
-import glob
+from logging.handlers import TimedRotatingFileHandler
 from threading import Thread
+import signal
 import configparser
-from contextlib import contextmanager
+import glob
 from urllib.request import urlopen
 from ftpsync.targets import FsTarget
 from ftpsync.ftp_target import FtpTarget
 from ftpsync.synchronizers import DownloadSynchronizer, UploadSynchronizer
 from datalog.data import DataStore
 
-from .config import MagnetometerConfig
+from .config import FtpConfig
+
+# create root logger
+root_logger = logging.getLogger()
 
 # load configuration
-CONFIG = MagnetometerConfig()
+CONF = FtpConfig()
 
-# logger
-logger = logging.getLogger("magnetometer.ftp")
+# open log file with handler
+try:
+    handler = TimedRotatingFileHandler(
+        CONF["logging"]["file"],
+        when="D",
+        backupCount=int(CONF["logging"]["file_count"]))
+except PermissionError as e:
+    root_logger.error("Log file at %s cannot be modified. Check it exists and that "
+                 "the current user has write permissions.",
+                 CONF["logging"]["file"])
+    sys.exit(1)
 
+# configure logging output
+handler.setFormatter(logging.Formatter(CONF["logging"]["format"]))
+root_logger.addHandler(handler)
+root_logger.setLevel(logging.getLevelName(CONF["logging"]["level"].upper()))
 
-@contextmanager
-def run_ftp():
+# get logger for FTP
+logger = logging.getLogger("ftp")
+
+def run():
     """Start FTP pipe"""
 
     logger.info("Starting FTP pipe")
@@ -32,19 +51,25 @@ def run_ftp():
     # create pipe
     pipe = FtpPipe()
 
-    # run
-    pipe.start()
-
-    # yield the pipe inside a try/finally block to handle any unexpected events
-    try:
-        # return the pipe to the caller
-        yield pipe
-    finally:
+    def stop(*args):
         # stop the thread and wait until it finishes
         pipe.stop()
         logger.info("Waiting for FTP pipe to stop")
         pipe.join()
         logger.info("FTP pipe stopped")
+
+    # catch signals
+    signal.signal(signal.SIGINT, stop)
+    signal.signal(signal.SIGTERM, stop)
+
+    # run
+    pipe.start()
+
+def stop():
+    pipe.stop()
+    logger.info("Waiting for FTP pipe to stop")
+    pipe.join()
+    logger.info("FTP pipe stopped")
 
 class FtpPipe(Thread):
     """Client to pipe data from the magnetometer server to a remote FTP server"""
@@ -59,7 +84,7 @@ class FtpPipe(Thread):
         Thread.__init__(self)
 
         # time in ms between polls
-        self.poll_time = int(CONFIG["ftp"]["poll_time"])
+        self.poll_time = int(CONF["ftp"]["poll_time"])
         logger.info("Poll time: {0:.2f} ms".format(self.poll_time))
 
         # default start time
@@ -87,20 +112,20 @@ class FtpPipe(Thread):
         self.retrieving = True
 
         # create local directory if it doesn't exist
-        if not os.path.exists(CONFIG["ftp"]["local_dir"]):
+        if not os.path.exists(CONF["ftp"]["local_dir"]):
             logger.debug("Creating local directory %s",
-                         CONFIG["ftp"]["local_dir"])
-            os.makedirs(CONFIG["ftp"]["local_dir"])
+                         CONF["ftp"]["local_dir"])
+            os.makedirs(CONF["ftp"]["local_dir"])
 
         # create local file target
-        local_target = FsTarget(CONFIG["ftp"]["local_dir"])
+        local_target = FsTarget(CONF["ftp"]["local_dir"])
 
         # remote FTP server
-        remote_target = FtpTarget(path=CONFIG["ftp"]["remote_dir"],
-                                  host=CONFIG["ftp"]["host"],
-                                  port=int(CONFIG["ftp"]["port"]),
-                                  username=CONFIG["ftp"]["username"],
-                                  password=CONFIG["ftp"]["password"])
+        remote_target = FtpTarget(path=CONF["ftp"]["remote_dir"],
+                                  host=CONF["ftp"]["host"],
+                                  port=int(CONF["ftp"]["port"]),
+                                  username=CONF["ftp"]["username"],
+                                  password=CONF["ftp"]["password"])
 
         # FTP options
         download_opts = {"force": True,
@@ -119,7 +144,7 @@ class FtpPipe(Thread):
                                                    download_opts)
 
         # look for existing file for today
-        self.ftp_downloader.run()
+        #self.ftp_downloader.run()
 
         # create uploader
         self.ftp_uploader = UploadSynchronizer(local_target,
@@ -162,7 +187,7 @@ class FtpPipe(Thread):
             # upload latest version of the file
             logger.debug("Synchronising new readings to FTP")
             try:
-                self.ftp_uploader.run()
+                pass#self.ftp_uploader.run()
             except RuntimeError:
                 # do nothing; try again next time
                 # this prevents FTP comms issues from killing the thread
@@ -231,7 +256,7 @@ class FtpPipe(Thread):
 
     def remove_old_files(self):
         # number of files to keep
-        max_old_files = int(CONFIG["ftp"]["max_old_files"])
+        max_old_files = int(CONF["ftp"]["max_old_files"])
 
         if max_old_files < 2:
             raise ValueError("max_old_files must be >= 2")
@@ -243,7 +268,7 @@ class FtpPipe(Thread):
 
     def data_file_walk(self, reverse=True):
         # data directory
-        data_dir = CONFIG["ftp"]["local_dir"]
+        data_dir = CONF["ftp"]["local_dir"]
 
         return sorted(glob.glob(os.path.join(data_dir, "*.txt")), reverse=reverse)
 
@@ -257,7 +282,7 @@ class FtpPipe(Thread):
 
     @classmethod
     def data_file_path(cls, filename):
-        return os.path.join(CONFIG["ftp"]["local_dir"], filename)
+        return os.path.join(CONF["ftp"]["local_dir"], filename)
 
     @classmethod
     def path_from_text(cls, base):
@@ -301,8 +326,8 @@ class FtpPipe(Thread):
 
     @staticmethod
     def after_url(pivot_timestamp):
-        return "http://%s:%i/after/%i?fmt=json" % (CONFIG["server"]["host"],
-                                                   int(CONFIG["server"]["port"]),
+        return "http://%s:%i/after/%i?fmt=json" % (CONF["server"]["host"],
+                                                   int(CONF["server"]["port"]),
                                                    pivot_timestamp)
 
     @classmethod

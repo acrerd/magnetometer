@@ -20,16 +20,50 @@ Installation is handled by `setup.py`. This is most easily handled by `pip`:
 ```bash
 pip3 install git+https://github.com/acrerd/magnetometer.git
 ```
+This will handle Python dependency installation, but not system prerequisites
+as listed above (e.g. `libssl-dev`). Be sure to first install these using your
+system package manager.
 
-## Quick Start
-Run in a terminal:
+The software can be later upgraded with:
 ```bash
-magnetometer
+pip3 install git+https://github.com/acrerd/magnetometer.git --upgrade
 ```
 
-The configuration file is located at `~/.config/magnetometer/magnetometer.conf`
-on most Debian-based operating systems. This contains parameters for setting the
-server, FTP, logging and other behaviours.
+## Usage
+The magnetometer server and FTP client can be run from the terminal, although
+it is not recommended. To run the server in a terminal, type:
+```bash
+magnetometer-server
+```
+To do the same for the FTP client:
+```bash
+magnetometer-ftp
+```
+
+The best way to run the system on supported platforms is with a `systemd`
+service. This is currently supported for Debian 7.0+, Ubuntu 16.04+ and
+Raspbian derivatives.
+
+The service configurations are installed automatically on supported platforms;
+however, in order to enable the services on boot, you must activate them:
+```bash
+sudo systemctl enable magnetometer-server
+sudo systemctl enable magnetometer-ftp
+```
+
+You can then start them immediately with the following, though it is recommended
+to first configure the software (see below):
+```bash
+sudo systemctl start magnetometer-server
+sudo systemctl start magnetometer-ftp
+```
+
+The configuration files are located at `~/.config/magnetometer/server.conf` and
+`~/.config/magnetometer/ftp.conf` on most Debian-based operating systems. These
+contain parameters for setting the server, FTP, logging and other behaviours.
+Note that they are not created until the programs are first executed. Note: as
+the services are run as root, the configuration files listed above will be
+at the locations `/root/config/magnetometer`.
 
 Sean Leavey  
 https://github.com/SeanDS/

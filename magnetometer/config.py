@@ -1,25 +1,22 @@
 """Configuration parser and defaults"""
 
 import os.path
+import abc
 import logging
 import abc
 from configparser import RawConfigParser
 import pkg_resources
 import appdirs
 
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-
 # logger
-logger = logging.getLogger("magnetometer.config")
+logger = logging.getLogger("config")
 
-
-class MagnetometerConfig(RawConfigParser):
-    """Magnetometer config parser"""
-
-    DEFAULT_CONFIG_FILENAME = 'magnetometer.conf.dist'
+class BaseConfig(RawConfigParser, metaclass=abc.ABCMeta):
+    CONFIG_FILENAME = None
+    DEFAULT_CONFIG_FILENAME = None
 
     def __init__(self, *args, **kwargs):
-        super(MagnetometerConfig, self).__init__(*args, **kwargs)
+        super(BaseConfig, self).__init__(*args, **kwargs)
 
         self.load_config_file()
 
@@ -39,7 +36,7 @@ class MagnetometerConfig(RawConfigParser):
         """
 
         config_dir = appdirs.user_config_dir("magnetometer")
-        config_file = os.path.join(config_dir, "magnetometer.conf")
+        config_file = os.path.join(config_dir, cls.CONFIG_FILENAME)
 
         # check the config file exists
         if not os.path.isfile(config_file):
@@ -66,3 +63,15 @@ class MagnetometerConfig(RawConfigParser):
                 pkg_resources.resource_stream(__name__,
                                               cls.DEFAULT_CONFIG_FILENAME)
             )
+
+class MagnetometerConfig(BaseConfig):
+    """Magnetometer config parser"""
+
+    CONFIG_FILENAME = "server.conf"
+    DEFAULT_CONFIG_FILENAME = CONFIG_FILENAME + ".dist"
+
+class FtpConfig(BaseConfig):
+    """FTP config parser"""
+
+    CONFIG_FILENAME = "ftp.conf"
+    DEFAULT_CONFIG_FILENAME = CONFIG_FILENAME + ".dist"

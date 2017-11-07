@@ -1,0 +1,13 @@
+[Unit]
+Description=Magnetometer server
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/magnetometer-server
+# only SIGINT gracefully closes bottle webserver
+KillSignal=SIGINT
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
