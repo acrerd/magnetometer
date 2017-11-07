@@ -144,7 +144,7 @@ class FtpPipe(Thread):
                                                    download_opts)
 
         # look for existing file for today
-        #self.ftp_downloader.run()
+        self.ftp_downloader.run()
 
         # create uploader
         self.ftp_uploader = UploadSynchronizer(local_target,
@@ -187,7 +187,7 @@ class FtpPipe(Thread):
             # upload latest version of the file
             logger.debug("Synchronising new readings to FTP")
             try:
-                pass#self.ftp_uploader.run()
+                self.ftp_uploader.run()
             except RuntimeError:
                 # do nothing; try again next time
                 # this prevents FTP comms issues from killing the thread
