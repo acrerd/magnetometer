@@ -14,7 +14,7 @@ __version__ = magnetometer.__version__
 # prerequisites from pypi
 requirements = [
     "appdirs",
-    "datalog==0.7.3",
+    "datalog",
     "bottle",
     "pyftpsync"
 ]
@@ -56,9 +56,6 @@ setup(
         ]
     },
     install_requires=requirements,
-    dependency_links=[
-      'git+ssh://git@github.com/SeanDS/datalog.git#egg=datalog-0.7.3',
-    ],
     license="GPLv3",
     zip_safe=False,
     classifiers=[
