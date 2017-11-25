@@ -132,7 +132,8 @@ class FtpPipe(Thread):
                          "resolve": "remote",
                          "verbose": 3,
                          "dry_run": False,
-                         "match": [self.filename_from_date(now)]}
+                         # match today's filename (wildcard required)
+                         "include_files": "*" + self.filename_from_date(now)}
         upload_opts = {"force": True,
                        "resolve": "local",
                        "verbose": 3,

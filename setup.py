@@ -16,7 +16,7 @@ requirements = [
     "appdirs",
     "datalog",
     "bottle",
-    "pyftpsync"
+    "pyftpsync==1.0.3"
 ]
 
 # data files
