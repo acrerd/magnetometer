@@ -188,10 +188,11 @@ class FtpPipe(Thread):
             logger.debug("Synchronising new readings to FTP")
             try:
                 self.ftp_uploader.run()
-            except RuntimeError:
+            except Exception as e:
                 # do nothing; try again next time
                 # this prevents FTP comms issues from killing the thread
-                pass
+                logger.error("Failed to upload data to FTP: %s (will try "
+                             "again)", str(e))
 
         # clean up old files
         self.remove_old_files()
