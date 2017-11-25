@@ -84,7 +84,14 @@ class FtpPipe(Thread):
         Thread.__init__(self)
 
         # time in ms between polls
-        self.poll_time = int(CONF["ftp"]["poll_time"])
+        poll_time = int(CONF["ftp"]["poll_time"])
+
+        if poll_time < 1000:
+            # since the runner sleeps for 1s between checks, times less than
+            # 1 second aren't supported
+            raise ValueError("Poll times less than 1000 ms aren't supported")
+
+        self.poll_time = poll_time
         logger.info("Poll time: {0:.2f} ms".format(self.poll_time))
 
         # default start time
@@ -97,7 +104,7 @@ class FtpPipe(Thread):
         """Starts piping magnetometer data"""
 
         # now
-        now = datetime.datetime.utcnow()
+        today = datetime.datetime.utcnow()
 
         # set status on
         self.retrieving = True
@@ -124,7 +131,7 @@ class FtpPipe(Thread):
                          "verbose": 3,
                          "dry_run": False,
                          # match today's filename (wildcard required)
-                         "include_files": "*" + self.filename_from_date(now)}
+                         "include_files": "*" + self.filename_from_date(today)}
         upload_opts = {"force": True,
                        "resolve": "local",
                        "verbose": 3,
@@ -145,21 +152,25 @@ class FtpPipe(Thread):
         # HACK: disable remote readonly - bug in pyftpsync
         remote_target.readonly = False
 
+        # next poll time is now plus the poll time (in ms)
+        next_poll_time = int(round(time.time() * 1000)) + self.poll_time
+
         # main run loop
         while self.retrieving:
-            # event timer
-            timer = Timer(self.poll_time / 1000, self.process_records)
+            # current timestamp in ms
+            now = int(round(time.time() * 1000))
 
-            # start timer
-            timer.start()
+            if now < next_poll_time:
+                # sleep, but not for too long so that the thread exits quickly
+                # when asked
+                time.sleep(1)
+            else:
+                self.process_records()
 
-            # join thread until triggered
-            timer.join()
+                # update next poll time
+                next_poll_time += self.poll_time
 
     def process_records(self):
-        # current timestamp in ms
-        now = int(round(time.time() * 1000))
-
         # timestamp corresponding to last recorded measurement
         pivot_timestamp = self.latest_recorded_timestamp()
 
