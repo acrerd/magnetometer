@@ -5,7 +5,7 @@ import time
 import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from threading import Thread
+from threading import Thread, Timer
 import signal
 import configparser
 import glob
@@ -90,9 +90,6 @@ class FtpPipe(Thread):
         # default start time
         self.start_time = None
 
-        # default next poll time
-        self._next_poll_time = None
-
         # retrieval flag
         self.retrieving = False
 
@@ -101,12 +98,6 @@ class FtpPipe(Thread):
 
         # now
         now = datetime.datetime.utcnow()
-
-        # start time (wait one poll time period to allow server to start)
-        self.start_time = int(round(time.time() * 1000)) + self.poll_time
-
-        # default next poll time
-        self._next_poll_time = self.start_time
 
         # set status on
         self.retrieving = True
@@ -156,15 +147,18 @@ class FtpPipe(Thread):
 
         # main run loop
         while self.retrieving:
-            self.process_records()
+            # event timer
+            timer = Timer(self.poll_time / 1000, self.process_records)
+
+            # start timer
+            timer.start()
+
+            # join thread until triggered
+            timer.join()
 
     def process_records(self):
         # current timestamp in ms
         now = int(round(time.time() * 1000))
-
-        if now < self._next_poll_time:
-            # nothing to do
-            return
 
         # timestamp corresponding to last recorded measurement
         pivot_timestamp = self.latest_recorded_timestamp()
@@ -197,9 +191,6 @@ class FtpPipe(Thread):
 
         # clean up old files
         self.remove_old_files()
-
-        # set the next poll time
-        self._next_poll_time += self.poll_time
 
     def stop(self):
         """Stops the FTP pipe"""
