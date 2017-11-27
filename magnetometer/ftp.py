@@ -126,6 +126,8 @@ class FtpPipe(Thread):
         # next poll time is now plus the poll time (in ms)
         next_poll_time = int(round(time.time() * 1000)) + self.poll_time
 
+        logger.debug("Starting retrieval")
+
         # main run loop
         while self.retrieving:
             # current timestamp in ms
