@@ -46,6 +46,8 @@ setup(
         "magnetometer"
     ],
     package_data={
+        "": ["README.md", "magnetometer-server.service",
+             "magnetometer-ftp.service"],
         "magnetometer": ["server.conf.dist", "ftp.conf.dist"],
     },
     data_files=data_files,
