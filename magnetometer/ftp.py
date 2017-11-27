@@ -1,5 +1,6 @@
 """University of Glasgow magnetometer FTP functionality"""
 
+import sys
 import os.path
 import time
 import datetime
@@ -103,9 +104,6 @@ class FtpPipe(Thread):
     def run(self):
         """Starts piping magnetometer data"""
 
-        # now
-        today = datetime.datetime.utcnow()
-
         # set status on
         self.retrieving = True
 
@@ -115,42 +113,15 @@ class FtpPipe(Thread):
                          CONF["ftp"]["local_dir"])
             os.makedirs(CONF["ftp"]["local_dir"])
 
-        # create local file target
-        local_target = FsTarget(CONF["ftp"]["local_dir"])
-
-        # remote FTP server
-        remote_target = FtpTarget(path=CONF["ftp"]["remote_dir"],
-                                  host=CONF["ftp"]["host"],
-                                  port=int(CONF["ftp"]["port"]),
-                                  username=CONF["ftp"]["username"],
-                                  password=CONF["ftp"]["password"])
-
-        # FTP options
-        download_opts = {"force": True,
-                         "resolve": "remote",
-                         "verbose": 3,
-                         "dry_run": False,
-                         # match today's filename (wildcard required)
-                         "include_files": "*" + self.filename_from_date(today)}
-        upload_opts = {"force": True,
-                       "resolve": "local",
-                       "verbose": 3,
-                       "dry_run": False}
-
-        # create downloader and uploader
-        self.ftp_downloader = DownloadSynchronizer(local_target,
-                                                   remote_target,
-                                                   download_opts)
-
-        # look for existing file for today
-        self.ftp_downloader.run()
-
-        # create uploader
-        self.ftp_uploader = UploadSynchronizer(local_target,
-                                               remote_target,
-                                               upload_opts)
-        # HACK: disable remote readonly - bug in pyftpsync
-        remote_target.readonly = False
+        try:
+            # download today's file from FTP
+            logger.debug("Downloading today's data file from FTP server")
+            self.sync_from_server()
+        except Exception as e:
+            # report error and exit
+            logger.error("Failed to download latest data from FTP server: %s "
+                         "(exiting)", e)
+            sys.exit(1)
 
         # next poll time is now plus the poll time (in ms)
         next_poll_time = int(round(time.time() * 1000)) + self.poll_time
@@ -169,6 +140,67 @@ class FtpPipe(Thread):
 
                 # update next poll time
                 next_poll_time += self.poll_time
+
+    @property
+    def local_target(self):
+        return FsTarget(CONF["ftp"]["local_dir"])
+
+    @property
+    def remote_target(self):
+        return FtpTarget(path=CONF["ftp"]["remote_dir"],
+                         host=CONF["ftp"]["host"],
+                         port=int(CONF["ftp"]["port"]),
+                         username=CONF["ftp"]["username"],
+                         password=CONF["ftp"]["password"])
+
+    def sync_from_server(self):
+        """Sync today's readings from FTP server
+
+        Note: this recreates the download/upload synchronisers each time to
+        avoid issues with flags set in these classes (bug in pyftpsync; see
+        https://github.com/mar10/pyftpsync/issues/23)
+        """
+
+        # current date and time
+        now = datetime.datetime.utcnow()
+
+        # FTP download options
+        download_opts = {"force": True,
+                         "resolve": "remote",
+                         "verbose": 3,
+                         "dry_run": False,
+                         # match today's filename (wildcard required)
+                         "include_files": "*" + self.filename_from_date(now)}
+
+        # create downloader
+        ftp_downloader = DownloadSynchronizer(self.local_target,
+                                              self.remote_target,
+                                              download_opts)
+
+        # download
+        ftp_downloader.run()
+
+    def sync_to_server(self):
+        """Sync local readings to FTP server
+
+        Note: this recreates the download/upload synchronisers each time to
+        avoid issues with flags set in these classes (bug in pyftpsync; see
+        https://github.com/mar10/pyftpsync/issues/23)
+        """
+
+        # FTP upload options
+        upload_opts = {"force": True,
+                       "resolve": "local",
+                       "verbose": 3,
+                       "dry_run": False}
+
+        # create uploader
+        ftp_uploader = UploadSynchronizer(self.local_target,
+                                          self.remote_target,
+                                          upload_opts)
+
+        # upload
+        ftp_uploader.run()
 
     def process_records(self):
         # timestamp corresponding to last recorded measurement
@@ -191,14 +223,16 @@ class FtpPipe(Thread):
                                     self.midnight_date(current_date))
 
             # upload latest version of the file
-            logger.debug("Synchronising new readings to FTP")
+            logger.debug("Uploading new readings to FTP server")
             try:
-                self.ftp_uploader.run()
+                self.sync_to_server()
             except Exception as e:
                 # do nothing; try again next time
                 # this prevents FTP comms issues from killing the thread
-                logger.error("Failed to upload data to FTP: %s (will try "
-                             "again)", str(e))
+                logger.error("Failed to upload data to FTP server: %s (will "
+                             "try again)", e)
+        else:
+            logger.debug("No data retrieved from server")
 
         # clean up old files
         self.remove_old_files()
@@ -341,24 +375,33 @@ class FtpPipe(Thread):
 
         logger.debug("Fetching readings from %s", url)
 
-        # fetch JSON document
-        with urlopen(url) as response:
-            # response encoding
-            charset = response.headers.get_content_charset()
+        # timeout
+        timeout = float(CONF["server"]["timeout"])
 
-            # decode document
-            document = response.read().decode(charset)
+        try:
+            # fetch JSON document
+            with urlopen(url, timeout=timeout) as response:
+                # response encoding
+                charset = response.headers.get_content_charset()
 
-            # try to parse JSON
-            try:
-                datastore = DataStore.instance_from_json(document)
+                # decode document
+                document = response.read().decode(charset)
 
-                logger.info("Found %i new readings",
-                            datastore.num_readings)
-            except Exception as e:
-                logger.error(e)
+                # try to parse JSON
+                try:
+                    datastore = DataStore.instance_from_json(document)
 
-                # return empty dataset
-                datastore = DataStore()
+                    logger.info("Found %i new readings",
+                                datastore.num_readings)
+                except Exception as e:
+                    logger.error(e)
+
+                    # return empty dataset
+                    datastore = DataStore()
+        except Exception as e:
+            logger.error("Cannot open URL: %s", e)
+
+            # return empty dataset
+            datastore = DataStore()
 
         return datastore

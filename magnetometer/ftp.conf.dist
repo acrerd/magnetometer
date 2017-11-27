@@ -7,6 +7,7 @@ file_count = 5
 [server]
 host = localhost
 port = 8080
+timeout = 15
 
 [ftp]
 poll_time = 60000
