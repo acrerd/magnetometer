@@ -158,7 +158,7 @@ class FtpPipe(Thread):
 
         Note: this recreates the download/upload synchronisers each time to
         avoid issues with flags set in these classes (bug in pyftpsync; see
-        https://github.com/mar10/pyftpsync/issues/23)
+        https://github.com/mar10/pyftpsync/issues/20)
         """
 
         # current date and time
@@ -185,7 +185,7 @@ class FtpPipe(Thread):
 
         Note: this recreates the download/upload synchronisers each time to
         avoid issues with flags set in these classes (bug in pyftpsync; see
-        https://github.com/mar10/pyftpsync/issues/23)
+        https://github.com/mar10/pyftpsync/issues/20)
         """
 
         # FTP upload options
