@@ -113,15 +113,9 @@ class FtpPipe(Thread):
                          CONF["ftp"]["local_dir"])
             os.makedirs(CONF["ftp"]["local_dir"])
 
-        try:
-            # download today's file from FTP
-            logger.debug("Downloading today's data file from FTP server")
-            self.sync_from_server()
-        except Exception as e:
-            # report error and exit
-            logger.error("Failed to download latest data from FTP server: %s "
-                         "(exiting)", e)
-            sys.exit(1)
+        # download today's file from FTP
+        logger.debug("Downloading today's data file from FTP server")
+        self.sync_from_server()
 
         # next poll time is now plus the poll time (in ms)
         next_poll_time = int(round(time.time() * 1000)) + self.poll_time
@@ -153,7 +147,8 @@ class FtpPipe(Thread):
                          host=CONF["ftp"]["host"],
                          port=int(CONF["ftp"]["port"]),
                          username=CONF["ftp"]["username"],
-                         password=CONF["ftp"]["password"])
+                         password=CONF["ftp"]["password"],
+                         timeout=int(CONF["ftp"]["timeout"]))
 
     def sync_from_server(self):
         """Sync today's readings from FTP server
