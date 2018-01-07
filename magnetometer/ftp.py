@@ -165,9 +165,8 @@ class FtpPipe(Thread):
         download_opts = {"force": True,
                          "resolve": "remote",
                          "verbose": 3,
-                         "dry_run": False,
                          # match today's filename (wildcard required)
-                         "include_files": "*" + self.filename_from_date(now)}
+                         "match": "*" + self.filename_from_date(now)}
 
         # create downloader
         ftp_downloader = DownloadSynchronizer(self.local_target,
@@ -188,8 +187,7 @@ class FtpPipe(Thread):
         # FTP upload options
         upload_opts = {"force": True,
                        "resolve": "local",
-                       "verbose": 3,
-                       "dry_run": False}
+                       "verbose": 3}
 
         # create uploader
         ftp_uploader = UploadSynchronizer(self.local_target,
